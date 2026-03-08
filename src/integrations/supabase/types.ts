@@ -14,7 +14,295 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agents: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          agent_id: string | null
+          channel: string
+          created_at: string
+          direction: string
+          id: string
+          lead_id: string
+          message: string
+        }
+        Insert: {
+          agent_id?: string | null
+          channel?: string
+          created_at?: string
+          direction: string
+          id?: string
+          lead_id: string
+          message: string
+        }
+        Update: {
+          agent_id?: string | null
+          channel?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          lead_id?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_up_reminders: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          lead_id: string
+          note: string | null
+          reminder_date: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          lead_id: string
+          note?: string | null
+          reminder_date: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          lead_id?: string
+          note?: string | null
+          reminder_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_reminders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_reminders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_agent_id: string | null
+          budget: string | null
+          created_at: string
+          email: string | null
+          first_response_time_min: number | null
+          id: string
+          last_activity_at: string
+          name: string
+          next_follow_up: string | null
+          notes: string | null
+          phone: string
+          preferred_location: string | null
+          property_id: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          status: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_agent_id?: string | null
+          budget?: string | null
+          created_at?: string
+          email?: string | null
+          first_response_time_min?: number | null
+          id?: string
+          last_activity_at?: string
+          name: string
+          next_follow_up?: string | null
+          notes?: string | null
+          phone: string
+          preferred_location?: string | null
+          property_id?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_agent_id?: string | null
+          budget?: string | null
+          created_at?: string
+          email?: string | null
+          first_response_time_min?: number | null
+          id?: string
+          last_activity_at?: string
+          name?: string
+          next_follow_up?: string | null
+          notes?: string | null
+          phone?: string
+          preferred_location?: string | null
+          property_id?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          status?: Database["public"]["Enums"]["pipeline_stage"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          address: string | null
+          area: string | null
+          city: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          price_range: string | null
+        }
+        Insert: {
+          address?: string | null
+          area?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          price_range?: string | null
+        }
+        Update: {
+          address?: string | null
+          area?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_range?: string | null
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          assigned_staff_id: string | null
+          confirmed: boolean
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          outcome: Database["public"]["Enums"]["visit_outcome"] | null
+          property_id: string
+          scheduled_at: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          confirmed?: boolean
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["visit_outcome"] | null
+          property_id: string
+          scheduled_at: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          confirmed?: boolean
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["visit_outcome"] | null
+          property_id?: string
+          scheduled_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_assigned_staff_id_fkey"
+            columns: ["assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +311,23 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      lead_source:
+        | "whatsapp"
+        | "website"
+        | "instagram"
+        | "facebook"
+        | "phone"
+        | "landing_page"
+      pipeline_stage:
+        | "new"
+        | "contacted"
+        | "requirement_collected"
+        | "property_suggested"
+        | "visit_scheduled"
+        | "visit_completed"
+        | "booked"
+        | "lost"
+      visit_outcome: "booked" | "considering" | "not_interested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +454,26 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      lead_source: [
+        "whatsapp",
+        "website",
+        "instagram",
+        "facebook",
+        "phone",
+        "landing_page",
+      ],
+      pipeline_stage: [
+        "new",
+        "contacted",
+        "requirement_collected",
+        "property_suggested",
+        "visit_scheduled",
+        "visit_completed",
+        "booked",
+        "lost",
+      ],
+      visit_outcome: ["booked", "considering", "not_interested"],
+    },
   },
 } as const
