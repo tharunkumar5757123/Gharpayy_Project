@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { usePublicProperty, useCreateReservation, useConfirmReservation, useSimilarProperties } from '@/hooks/usePublicData';
+import { usePublicProperty, useCreateReservation, useConfirmReservation, useSimilarProperties, useRequestVisit } from '@/hooks/usePublicData';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import PropertyChat from '@/components/PropertyChat';
@@ -27,12 +27,15 @@ export default function PropertyDetail() {
   const { data: property, isLoading } = usePublicProperty(propertyId);
   const createReservation = useCreateReservation();
   const confirmReservation = useConfirmReservation();
+  const requestVisit = useRequestVisit();
 
   const [actionMode, setActionMode] = useState<ActionMode>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [selectedBed, setSelectedBed] = useState<any>(null);
   const [customerForm, setCustomerForm] = useState({ name: '', phone: '', email: '', moveInDate: '' });
+  const [visitForm, setVisitForm] = useState({ name: '', phone: '', email: '', scheduled_at: '' });
+  const [virtualForm, setVirtualForm] = useState({ name: '', phone: '', email: '', scheduled_at: '' });
   const [reservationResult, setReservationResult] = useState<any>(null);
   const [heroIdx, setHeroIdx] = useState(0);
 
@@ -58,8 +61,10 @@ export default function PropertyDetail() {
   }
 
   const allRooms = property.rooms || [];
+  const availableRooms = allRooms.filter((r: any) => (r.beds || []).some((b: any) => b.status === 'vacant'));
   const vacantBeds = allRooms.flatMap((r: any) => (r.beds || []).filter((b: any) => b.status === 'vacant'));
   const totalBeds = allRooms.reduce((s: number, r: any) => s + (r.beds?.length || 0), 0);
+  const availableBedsForRoom = selectedRoom ? (selectedRoom.beds || []).filter((b: any) => b.status === 'vacant') : [];
 
   const getSimRent = (p: any) => {
     const rents = (p.rooms || []).map((r: any) => r.rent_per_bed || r.expected_rent).filter(Boolean);
@@ -104,6 +109,34 @@ export default function PropertyDetail() {
       setReservationResult(null);
     } catch (e: any) {
       toast.error(e.message);
+    }
+  };
+
+  const submitVisitRequest = async (type: 'in_person' | 'virtual') => {
+    const form = type === 'in_person' ? visitForm : virtualForm;
+    if (!form.name.trim() || !form.phone.trim() || !form.scheduled_at) {
+      toast.error('Name, phone, and date/time are required.');
+      return;
+    }
+    try {
+      await requestVisit.mutateAsync({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim() || undefined,
+        property_id: property.id,
+        scheduled_at: new Date(form.scheduled_at).toISOString(),
+        visit_type: type,
+        source: 'website',
+      });
+      toast.success(type === 'virtual' ? 'Virtual tour booked! We will confirm shortly.' : "Visit request submitted! We'll confirm shortly.");
+      setActionMode(null);
+      if (type === 'in_person') {
+        setVisitForm({ name: '', phone: '', email: '', scheduled_at: '' });
+      } else {
+        setVirtualForm({ name: '', phone: '', email: '', scheduled_at: '' });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to submit request');
     }
   };
 
@@ -384,7 +417,7 @@ export default function PropertyDetail() {
       </div>
 
       {/* Chat Widget */}
-      <PropertyChat propertyName={property.name} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <PropertyChat propertyId={property.id} propertyName={property.name} isOpen={chatOpen} onClose={() => setChatOpen(false)} />
 
       {/* Pre-Book Dialog */}
       <Dialog open={actionMode === 'pre_book'} onOpenChange={(o) => { if (!o) { setActionMode(null); setReservationResult(null); } }}>
@@ -400,7 +433,49 @@ export default function PropertyDetail() {
                   <br /><span className="text-muted-foreground">₹{(selectedRoom?.rent_per_bed || selectedRoom?.expected_rent || 0).toLocaleString()}/month</span>
                 </div>
               ) : (
-                <p className="text-sm text-destructive">Please select a bed from the rooms section first.</p>
+                <div className="p-3 rounded-lg bg-secondary/60 text-sm space-y-3">
+                  <p className="text-sm text-muted-foreground">Select a room and bed to reserve.</p>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Room</Label>
+                    <Select
+                      value={selectedRoom?.id || ''}
+                      onValueChange={(id) => {
+                        const room = allRooms.find((r: any) => r.id === id);
+                        setSelectedRoom(room || null);
+                        setSelectedBed(null);
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Choose a room" /></SelectTrigger>
+                      <SelectContent>
+                        {availableRooms.map((room: any) => (
+                          <SelectItem key={room.id} value={room.id}>
+                            Room {room.room_number} · {room.room_type || 'Standard'} · {room.bed_count} beds
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Bed</Label>
+                    <Select
+                      value={selectedBed?.id || ''}
+                      onValueChange={(id) => {
+                        const bed = availableBedsForRoom.find((b: any) => b.id === id);
+                        setSelectedBed(bed || null);
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder={selectedRoom ? 'Choose a bed' : 'Select a room first'} /></SelectTrigger>
+                      <SelectContent>
+                        {availableBedsForRoom.map((bed: any) => (
+                          <SelectItem key={bed.id} value={bed.id}>Bed {bed.bed_number}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {availableRooms.length === 0 && (
+                    <p className="text-xs text-destructive">No vacant beds are available right now.</p>
+                  )}
+                </div>
               )}
               <div className="space-y-3">
                 <div><Label>Full Name *</Label><Input value={customerForm.name} onChange={e => setCustomerForm(f => ({ ...f, name: e.target.value }))} /></div>
@@ -440,21 +515,12 @@ export default function PropertyDetail() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Schedule a Visit</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Your Name</Label><Input placeholder="Full name" /></div>
-            <div><Label>Phone</Label><Input placeholder="+91..." /></div>
-            <div><Label>Preferred Date</Label><Input type="date" /></div>
-            <div><Label>Preferred Time</Label>
-              <Select>
-                <SelectTrigger><SelectValue placeholder="Select time slot" /></SelectTrigger>
-                <SelectContent>
-                  {['10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '6:00 PM'].map(t => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => { toast.success("Visit request submitted! We'll confirm shortly."); setActionMode(null); }}>
-              Request Visit
+            <div><Label>Your Name *</Label><Input placeholder="Full name" value={visitForm.name} onChange={e => setVisitForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div><Label>Phone *</Label><Input placeholder="+91..." value={visitForm.phone} onChange={e => setVisitForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            <div><Label>Email</Label><Input type="email" placeholder="email@example.com" value={visitForm.email} onChange={e => setVisitForm(f => ({ ...f, email: e.target.value }))} /></div>
+            <div><Label>Date & Time *</Label><Input type="datetime-local" value={visitForm.scheduled_at} onChange={e => setVisitForm(f => ({ ...f, scheduled_at: e.target.value }))} /></div>
+            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => submitVisitRequest('in_person')} disabled={requestVisit.isPending}>
+              {requestVisit.isPending ? 'Submitting...' : 'Request Visit'}
             </Button>
           </div>
         </DialogContent>
@@ -466,21 +532,12 @@ export default function PropertyDetail() {
           <DialogHeader><DialogTitle>Book a Virtual Tour</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">See the property from the comfort of your home. A Gharpayy agent will give you a live video walkthrough.</p>
-            <div><Label>Your Name</Label><Input placeholder="Full name" /></div>
-            <div><Label>Phone / WhatsApp</Label><Input placeholder="+91..." /></div>
-            <div><Label>Preferred Slot</Label>
-              <Select>
-                <SelectTrigger><SelectValue placeholder="Select time" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today_now">Today - As soon as possible</SelectItem>
-                  <SelectItem value="today_eve">Today - Evening (5-7 PM)</SelectItem>
-                  <SelectItem value="tomorrow_morn">Tomorrow - Morning (10-12 PM)</SelectItem>
-                  <SelectItem value="tomorrow_eve">Tomorrow - Evening (5-7 PM)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => { toast.success('Virtual tour booked! Check WhatsApp for the link.'); setActionMode(null); }}>
-              Book Virtual Tour
+            <div><Label>Your Name *</Label><Input placeholder="Full name" value={virtualForm.name} onChange={e => setVirtualForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div><Label>Phone / WhatsApp *</Label><Input placeholder="+91..." value={virtualForm.phone} onChange={e => setVirtualForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            <div><Label>Email</Label><Input type="email" placeholder="email@example.com" value={virtualForm.email} onChange={e => setVirtualForm(f => ({ ...f, email: e.target.value }))} /></div>
+            <div><Label>Date & Time *</Label><Input type="datetime-local" value={virtualForm.scheduled_at} onChange={e => setVirtualForm(f => ({ ...f, scheduled_at: e.target.value }))} /></div>
+            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => submitVisitRequest('virtual')} disabled={requestVisit.isPending}>
+              {requestVisit.isPending ? 'Submitting...' : 'Book Virtual Tour'}
             </Button>
           </div>
         </DialogContent>

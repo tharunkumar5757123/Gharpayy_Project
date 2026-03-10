@@ -126,16 +126,29 @@ const BOOKING_COLORS: Record<string, string> = {
 export default function OwnerPortal() {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { data: owner, isLoading: ownerLoading, error: ownerError } = useOwnerByUser(user?.id);
+  const { data: owner, isLoading: ownerLoading } = useOwnerByUser(user?.id);
   const { data: properties } = useOwnerProperties(owner?.id);
   const propertyIds = properties?.map((p: any) => p.id) || [];
   const { data: bookings } = useOwnerBookings(propertyIds);
   const confirmRoom = useConfirmRoom();
+  const qc = useQueryClient();
 
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [confirmDialog, setConfirmDialog] = useState<any>(null);
   const [confirmStatus, setConfirmStatus] = useState('vacant');
   const [confirmNotes, setConfirmNotes] = useState('');
+  const [ownerForm, setOwnerForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    company_name: '',
+  });
+
+  useEffect(() => {
+    if (user?.email) {
+      setOwnerForm((f) => ({ ...f, email: f.email || user.email! }));
+    }
+  }, [user?.email]);
 
   // If not logged in, redirect to auth
   useEffect(() => {
@@ -160,9 +173,69 @@ export default function OwnerPortal() {
             <AlertTriangle size={40} className="mx-auto mb-4 text-warning" />
             <h2 className="text-xl font-semibold mb-2">No Owner Account Found</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Your account is not linked to any property owner profile. Please contact the Gharpayy team to set up your owner account.
+              Your account is not linked to any property owner profile yet. Create one now to access the Owner Portal.
             </p>
+            <div className="space-y-3 text-left mb-6">
+              <div>
+                <Label className="text-xs">Owner Name *</Label>
+                <Input
+                  value={ownerForm.name}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Full name"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Phone *</Label>
+                <Input
+                  value={ownerForm.phone}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="+91..."
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input
+                  value={ownerForm.email}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="email@domain.com"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Company (optional)</Label>
+                <Input
+                  value={ownerForm.company_name}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, company_name: e.target.value }))}
+                  placeholder="Company name"
+                />
+              </div>
+            </div>
             <div className="flex gap-3 justify-center">
+              <Button
+                onClick={async () => {
+                  if (!user) return;
+                  if (!ownerForm.name.trim() || !ownerForm.phone.trim()) {
+                    toast.error('Name and phone are required');
+                    return;
+                  }
+                  const { error } = await supabase.from('owners').insert({
+                    user_id: user.id,
+                    name: ownerForm.name.trim(),
+                    phone: ownerForm.phone.trim(),
+                    email: ownerForm.email.trim() || null,
+                    company_name: ownerForm.company_name.trim() || null,
+                    is_active: true,
+                  });
+                  if (error) {
+                    toast.error(error.message);
+                    return;
+                  }
+                  toast.success('Owner profile created');
+                  qc.invalidateQueries({ queryKey: ['owner-by-user'] });
+                }}
+                className="bg-accent text-accent-foreground"
+              >
+                Create Owner Profile
+              </Button>
               <Button variant="outline" onClick={() => navigate('/')}>Go Home</Button>
               <Button onClick={() => signOut()}>Sign Out</Button>
             </div>

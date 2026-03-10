@@ -9,11 +9,12 @@ import { useAgents, useProperties } from '@/hooks/useCrmData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Plus, Trash2, UserCog, Building2, User, Save } from 'lucide-react';
+import { Plus, Trash2, UserCog, Building2, User, Save, Shield } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 const SettingsPage = () => {
-  const user = { id: 'admin', email: 'admin@gharpayy.com', user_metadata: { full_name: 'Admin' } };
+  const { user } = useAuth();
   const { data: agents } = useAgents();
   const { data: properties } = useProperties();
   const qc = useQueryClient();
@@ -33,6 +34,7 @@ const SettingsPage = () => {
           </TabsList>
 
           <TabsContent value="team">
+            <AdminAccessCard />
             <TeamTab agents={agents || []} qc={qc} />
           </TabsContent>
           <TabsContent value="properties">
@@ -130,6 +132,90 @@ function TeamTab({ agents, qc }: { agents: any[]; qc: any }) {
   );
 }
 
+function AdminAccessCard() {
+  const [userId, setUserId] = useState('');
+  const [role, setRole] = useState<'admin' | 'manager' | 'agent' | 'owner'>('agent');
+  const [loading, setLoading] = useState(false);
+
+  const handleBootstrap = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('bootstrap_admin');
+      if (error) throw error;
+      if (data) toast.success('You are now admin');
+      else toast.message('Admin already exists');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!userId.trim()) {
+      toast.error('User ID is required');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('set_user_role', { p_user_id: userId.trim(), p_role: role });
+      if (error) throw error;
+      toast.success('Role assigned');
+      setUserId('');
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="kpi-card mb-6">
+      <h3 className="font-display font-semibold text-xs mb-4 flex items-center gap-2">
+        <Shield size={13} className="text-accent" /> Access Control
+      </h3>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Button size="sm" variant="outline" onClick={handleBootstrap} disabled={loading}>
+            Bootstrap Admin
+          </Button>
+          <span className="text-[10px] text-muted-foreground">Use once to claim the first admin account.</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1.5 col-span-2">
+            <Label className="text-[10px]">User ID *</Label>
+            <Input
+              placeholder="auth.users.id"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="text-xs"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px]">Role</Label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as any)}
+              className="h-10 rounded-xl border border-border bg-background px-3 text-xs"
+            >
+              <option value="admin">admin</option>
+              <option value="manager">manager</option>
+              <option value="agent">agent</option>
+              <option value="owner">owner</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <Button size="sm" onClick={handleAssign} disabled={loading} className="gap-1.5 text-xs">
+            Assign Role
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PropertiesTab({ properties, qc }: { properties: any[]; qc: any }) {
   const [form, setForm] = useState({ name: '', city: '', area: '', price_range: '', address: '' });
   const [adding, setAdding] = useState(false);
@@ -208,6 +294,13 @@ function PropertiesTab({ properties, qc }: { properties: any[]; qc: any }) {
 }
 
 function ProfileTab({ user }: { user: any }) {
+  if (!user) {
+    return (
+      <div className="kpi-card max-w-md">
+        <p className="text-xs text-muted-foreground">Sign in to edit your profile.</p>
+      </div>
+    );
+  }
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);

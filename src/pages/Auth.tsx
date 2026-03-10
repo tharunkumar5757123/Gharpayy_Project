@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { Button } from '@/components/ui/button';
@@ -7,33 +8,35 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Auth = () => {
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [email, setEmail] = useState('demo@gharpayy.com');
-  const [password, setPassword] = useState('demo1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
+  const redirectTo = new URLSearchParams(location.search).get('redirect') || '/dashboard';
 
-  // Auto-create demo account on first visit
-  const ensureDemoAccount = async () => {
-    const { error } = await supabase.auth.signUp({
-      email: 'demo@gharpayy.com',
-      password: 'demo1234',
-      options: { data: { full_name: 'Demo User' } },
-    });
-    // Ignore if already exists
-  };
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [authLoading, user, navigate, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Ensure demo account exists first
-    if (email === 'demo@gharpayy.com') await ensureDemoAccount();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) toast.error(error.message);
-    else toast.success('Welcome back!');
+    else {
+      toast.success('Welcome back!');
+      navigate(redirectTo, { replace: true });
+    }
     setLoading(false);
   };
 

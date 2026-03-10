@@ -3,6 +3,8 @@ import { X, Send, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface ChatMessage {
   id: string;
@@ -36,12 +38,13 @@ const getAutoResponse = (message: string): string | null => {
 };
 
 interface PropertyChatProps {
+  propertyId: string;
   propertyName: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function PropertyChat({ propertyName, isOpen, onClose }: PropertyChatProps) {
+export default function PropertyChat({ propertyId, propertyName, isOpen, onClose }: PropertyChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -52,6 +55,9 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
+  const [leadForm, setLeadForm] = useState({ name: '', phone: '', email: '' });
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,8 +66,36 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
 
   const quickQuestions = ['What about food?', 'Is WiFi included?', 'Security details?', 'Move-in process?'];
 
-  const sendMessage = (text: string) => {
+  const sendToServer = async (text: string) => {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const payload: any = {
+      message: text,
+      property_id: propertyId,
+      source: 'website',
+    };
+    if (leadId) {
+      payload.lead_id = leadId;
+    } else {
+      payload.name = leadForm.name.trim();
+      payload.phone = leadForm.phone.trim();
+      payload.email = leadForm.email.trim() || undefined;
+    }
+    const res = await fetch(`https://${projectId}.supabase.co/functions/v1/receive-chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'Failed to send message');
+    if (data?.lead_id) setLeadId(data.lead_id);
+  };
+
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
+    if (!leadId && (!leadForm.name.trim() || !leadForm.phone.trim())) {
+      toast.error('Please enter your name and phone to start chat.');
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -72,8 +106,10 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setSending(true);
 
-    setTimeout(() => {
+    try {
+      await sendToServer(text);
       const auto = getAutoResponse(text);
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -82,8 +118,12 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages(prev => [...prev, botMsg]);
+    } catch (e: any) {
+      toast.error(e.message || 'Message failed');
+    } finally {
       setIsTyping(false);
-    }, 800 + Math.random() * 600);
+      setSending(false);
+    }
   };
 
   return (
@@ -116,6 +156,40 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {!leadId && (
+              <div className="p-3 rounded-xl bg-secondary/50 border border-border">
+                <p className="text-xs text-muted-foreground mb-3">Start the chat by sharing your details.</p>
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-[10px]">Name *</Label>
+                    <Input
+                      value={leadForm.name}
+                      onChange={(e) => setLeadForm(f => ({ ...f, name: e.target.value }))}
+                      className="h-8 text-xs"
+                      placeholder="Your name"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">Phone *</Label>
+                    <Input
+                      value={leadForm.phone}
+                      onChange={(e) => setLeadForm(f => ({ ...f, phone: e.target.value }))}
+                      className="h-8 text-xs"
+                      placeholder="+91..."
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px]">Email</Label>
+                    <Input
+                      value={leadForm.email}
+                      onChange={(e) => setLeadForm(f => ({ ...f, email: e.target.value }))}
+                      className="h-8 text-xs"
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] ${msg.role === 'user' ? '' : 'flex gap-2'}`}>
@@ -173,7 +247,7 @@ export default function PropertyChat({ propertyName, isOpen, onClose }: Property
               placeholder="Ask about this PG..."
               className="h-9 text-sm"
             />
-            <Button size="sm" className="h-9 w-9 p-0 bg-accent hover:bg-accent/90" onClick={() => sendMessage(input)}>
+            <Button size="sm" className="h-9 w-9 p-0 bg-accent hover:bg-accent/90" onClick={() => sendMessage(input)} disabled={sending}>
               <Send size={14} className="text-accent-foreground" />
             </Button>
           </div>

@@ -1203,6 +1203,7 @@ export type Database = {
           room_id: string | null
           scheduled_at: string
           updated_at: string
+          visit_type: Database["public"]["Enums"]["visit_type"]
         }
         Insert: {
           assigned_staff_id?: string | null
@@ -1217,6 +1218,7 @@ export type Database = {
           room_id?: string | null
           scheduled_at: string
           updated_at?: string
+          visit_type?: Database["public"]["Enums"]["visit_type"]
         }
         Update: {
           assigned_staff_id?: string | null
@@ -1231,6 +1233,7 @@ export type Database = {
           room_id?: string | null
           scheduled_at?: string
           updated_at?: string
+          visit_type?: Database["public"]["Enums"]["visit_type"]
         }
         Relationships: [
           {
@@ -1402,6 +1405,7 @@ export type Database = {
         | "lost"
       room_status: "occupied" | "vacating" | "vacant" | "blocked"
       visit_outcome: "booked" | "considering" | "not_interested"
+      visit_type: "in_person" | "virtual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1571,6 +1575,7 @@ export const Constants = {
       ],
       room_status: ["occupied", "vacating", "vacant", "blocked"],
       visit_outcome: ["booked", "considering", "not_interested"],
+      visit_type: ["in_person", "virtual"],
     },
   },
 } as const

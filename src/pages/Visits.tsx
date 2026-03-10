@@ -79,6 +79,11 @@ const Visits = () => {
                 <span className="flex items-center gap-1"><Clock size={10} /> {format(new Date(visit.scheduled_at), 'MMM d, h:mm a')}</span>
                 <span className="flex items-center gap-1"><User size={10} /> {visit.agents?.name?.split(' ')[0] || 'TBD'}</span>
               </div>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-3">
+                <span className="badge-pipeline bg-secondary/40 text-foreground capitalize">
+                  {visit.visit_type === 'virtual' ? 'Virtual' : 'In-person'}
+                </span>
+              </div>
               <div className="border-t border-border pt-3">
                 <Select onValueChange={v => handleOutcome(visit.id, v)}>
                   <SelectTrigger className="h-8 text-2xs rounded-xl"><SelectValue placeholder="Record outcome..." /></SelectTrigger>
@@ -104,6 +109,7 @@ const Visits = () => {
                 <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Lead</th>
                 <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Property</th>
                 <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Date</th>
+                <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Type</th>
                 <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Staff</th>
                 <th className="text-left px-4 py-3.5 text-2xs font-medium text-muted-foreground">Outcome</th>
               </tr>
@@ -114,6 +120,7 @@ const Visits = () => {
                   <td className="px-4 py-3.5 font-medium text-foreground">{visit.leads?.name}</td>
                   <td className="px-4 py-3.5 text-2xs text-muted-foreground">{visit.properties?.name}</td>
                   <td className="px-4 py-3.5 text-2xs text-muted-foreground">{format(new Date(visit.scheduled_at), 'MMM d, h:mm a')}</td>
+                  <td className="px-4 py-3.5 text-2xs text-muted-foreground capitalize">{visit.visit_type === 'virtual' ? 'Virtual' : 'In-person'}</td>
                   <td className="px-4 py-3.5 text-2xs text-muted-foreground">{visit.agents?.name}</td>
                   <td className="px-4 py-3.5">
                     <span className="flex items-center gap-1 text-2xs capitalize">
@@ -124,7 +131,7 @@ const Visits = () => {
                 </tr>
               ))}
               {past.length === 0 && (
-                <tr><td colSpan={5} className="text-center py-10 text-xs text-muted-foreground">No completed visits yet</td></tr>
+                <tr><td colSpan={6} className="text-center py-10 text-xs text-muted-foreground">No completed visits yet</td></tr>
               )}
             </tbody>
           </table>

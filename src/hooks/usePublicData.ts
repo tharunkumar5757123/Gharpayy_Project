@@ -21,7 +21,7 @@ export function usePublicProperties(filters: PropertyFilters = {}) {
     queryFn: async () => {
       let q = supabase
         .from('properties')
-        .select('*, owners:owner_id(name), rooms(id, room_number, room_type, bed_count, rent_per_bed, expected_rent, status, floor, furnishing, bathroom_type, amenities, beds(id, bed_number, status, current_rent))')
+        .select('*, rooms(id, room_number, room_type, bed_count, rent_per_bed, expected_rent, status, floor, furnishing, bathroom_type, amenities, beds(id, bed_number, status, current_rent))')
         .eq('is_active', true)
         .order('rating', { ascending: false, nullsFirst: false });
 
@@ -64,7 +64,7 @@ export function usePublicProperty(propertyId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('properties')
-        .select('*, owners:owner_id(name, phone), rooms(*, beds(*))')
+        .select('*, rooms(*, beds(*))')
         .eq('id', propertyId!)
         .single();
       if (error) throw error;
@@ -169,6 +169,34 @@ export function useConfirmReservation() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+  });
+}
+
+export function useRequestVisit() {
+  return useMutation({
+    mutationFn: async (params: {
+      name: string;
+      phone: string;
+      email?: string;
+      property_id: string;
+      scheduled_at: string;
+      visit_type: 'in_person' | 'virtual';
+      notes?: string;
+      preferred_location?: string;
+      source?: string;
+    }) => {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/receive-visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Failed to submit request');
+      }
       return data;
     },
   });

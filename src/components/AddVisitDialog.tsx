@@ -15,6 +15,7 @@ const AddVisitDialog = () => {
     property_id: '',
     assigned_staff_id: '',
     scheduled_at: '',
+    visit_type: 'in_person',
   });
 
   const createVisit = useCreateVisit();
@@ -35,10 +36,11 @@ const AddVisitDialog = () => {
         property_id: form.property_id,
         assigned_staff_id: form.assigned_staff_id || null,
         scheduled_at: new Date(form.scheduled_at).toISOString(),
+        visit_type: form.visit_type as any,
       });
       toast.success('Visit scheduled!');
       setOpen(false);
-      setForm({ lead_id: '', property_id: '', assigned_staff_id: '', scheduled_at: '' });
+      setForm({ lead_id: '', property_id: '', assigned_staff_id: '', scheduled_at: '', visit_type: 'in_person' });
     } catch (err: any) {
       toast.error(err.message || 'Failed to schedule visit');
     }
@@ -88,6 +90,17 @@ const AddVisitDialog = () => {
                 {agents?.map(a => (
                   <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Visit Type</Label>
+            <Select value={form.visit_type} onValueChange={v => setForm(f => ({ ...f, visit_type: v }))}>
+              <SelectTrigger><SelectValue placeholder="Select visit type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="in_person">In-person</SelectItem>
+                <SelectItem value="virtual">Virtual tour</SelectItem>
               </SelectContent>
             </Select>
           </div>
